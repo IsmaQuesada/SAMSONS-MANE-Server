@@ -1,0 +1,174 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// Modelo Usuario
+model Usuario {
+  id              Int       @id @default(autoincrement())
+  email           String    @unique
+  nombre          String?
+  telefono        String?
+  correo          String?
+  fechaNacimiento DateTime?
+  password        String
+  role            Role      @default(CLIENT)
+  sucursalId      Int?
+  sucursal        Sucursal? @relation(fields: [sucursalId], references: [id])
+  reservas        Reserva[]
+  facturas        Factura[]
+}
+
+enum Role {
+  CLIENT
+  ENCARGADO
+  ADMIN
+}
+
+// Modelo Sucursal
+model Sucursal {
+  id             Int              @id @default(autoincrement())
+  nombre         String
+  descripcion    String
+  telefono       String
+  direccion      String
+  email          String
+  encargados     Usuario[]
+  horarios       Horario[]
+  reservas       Reserva[]
+  Factura        Factura[]
+  DiasBloqueados DiasBloqueados[]
+}
+
+// Modelo Servicio
+model Servicio {
+  id                Int              @id @default(autoincrement())
+  nombre            String
+  descripcion       String
+  tarifa            Decimal          @db.Decimal(10, 2)
+  tiempoServicio    Int
+  requisitosPrevios String?
+  Precauciones      String?
+  reservas          Reserva[]
+  DetalleFactura    DetalleFactura[]
+}
+
+// Modelo Producto
+model Producto {
+  id             Int                @id @default(autoincrement())
+  nombre         String
+  descripcion    String
+  precio         Decimal            @db.Decimal(10, 2)
+  marca          String
+  uso            String
+  categoria_id   Int?
+  categoria      CategoriaProducto? @relation(fields: [categoria_id], references: [id])
+  DetalleFactura DetalleFactura[]
+  imagen         String
+}
+
+// Modelo para la tabla de categorias_productos
+model CategoriaProducto {
+  id        Int        @id @default(autoincrement())
+  nombre    String
+  productos Producto[]
+}
+
+// Modelo para la tabla de horarios
+model Horario {
+  id          Int       @id @default(autoincrement())
+  sucursal_id Int
+  dia_semana  DiaSemana
+  fecha       DateTime
+  hora_inicio DateTime
+  hora_fin    DateTime
+  sucursal    Sucursal  @relation(fields: [sucursal_id], references: [id])
+}
+
+// Modelo para la tabla de dias_bloqueados
+model DiasBloqueados {
+  id          Int       @id @default(autoincrement())
+  sucursal_id Int
+  dia_semana  DiaSemana
+  fecha       DateTime
+  hora_inicio DateTime
+  hora_fin    DateTime
+  sucursal    Sucursal  @relation(fields: [sucursal_id], references: [id])
+}
+
+enum DiaSemana {
+  Lunes
+  Martes
+  Miercoles
+  Jueves
+  Viernes
+  Sabado
+  Domingo
+}
+
+// Modelo Reserva
+model Reserva {
+  id                   Int      @id @default(autoincrement())
+  fecha                DateTime
+  hora                 String
+  TipoCorte            String
+  alergias             String
+  preferenciaProductos String
+  estado               Estado   @default(PENDIENTE)
+  clienteId            Int
+  cliente              Usuario  @relation(fields: [clienteId], references: [id])
+  sucursalId           Int
+  sucursal             Sucursal @relation(fields: [sucursalId], references: [id])
+  servicioId           Int
+  servicio             Servicio @relation(fields: [servicioId], references: [id])
+  facturaId            Int?
+  factura              Factura? @relation(fields: [facturaId], references: [id])
+}
+
+enum Estado {
+  PENDIENTE
+  CONFIRMADA
+  REPROGRAMADA
+  COMPLETADA
+  CANCELADA
+  NO_ASISTIO
+}
+
+// Modelo para la tabla de facturas
+model Factura {
+  id              Int              @id @default(autoincrement())
+  fecha           DateTime
+  cliente_id      Int
+  sucursal_id     Int
+  cliente         Usuario          @relation(fields: [cliente_id], references: [id])
+  sucursal        Sucursal         @relation(fields: [sucursal_id], references: [id])
+  detalleFacturas DetalleFactura[]
+  Total           Decimal?         @db.Decimal(10, 2)
+  Reserva         Reserva[]
+  estado          Boolean
+}
+
+// Modelo para la tabla de detalle_facturas
+model DetalleFactura {
+  id          Int       @id @default(autoincrement())
+  factura_id  Int
+  producto_id Int?
+  servicio_id Int?
+  cantidad    Int
+  precio      Decimal?  @db.Decimal(10, 2)
+  subTotal    Decimal?  @db.Decimal(10, 2) // Agregado
+  impuesto    Decimal?  @db.Decimal(10, 2) // Agregado
+  factura     Factura   @relation(fields: [factura_id], references: [id])
+  producto    Producto? @relation(fields: [producto_id], references: [id])
+  servicio    Servicio? @relation(fields: [servicio_id], references: [id])
+}
